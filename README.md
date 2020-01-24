@@ -13,6 +13,7 @@
 `./mill` will install automatically for you.  
 
 3. Example Code  
+Check API from [This Document](https://tushare.pro/document/2)
 ```scala
 import tushare._
 import tushare.implicits._
