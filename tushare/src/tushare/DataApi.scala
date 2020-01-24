@@ -3,24 +3,32 @@ package tushare
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import upickle.default._
 
+import scala.util.matching.Regex
+
 class DataApi(token:String = "",timeout:Int = 10)(implicit val confContext:ConfContext,implicit val spark:SparkSession) {
   assert(!(EMPTEY_STRING.equals(token) && EMPTEY_STRING.equals(confContext.storedToken)),"Tushare Token must be specified!")
   import spark.implicits._
   import org.apache.spark.sql.functions._
+  val pattern:Regex = """(\:|\,)(\ +)(\d+\.?\d*)""".r
+
   val  httpUrl:String = "http://api.tushare.pro"
+
   val tokenGotten:String = if(EMPTEY_STRING.equals(token)) confContext.storedToken else token
 
 
-  def queryToText(apiName:String,queryfields:String=""):String={
-    val reqParams = write(Map("api_name"->apiName,
+  def queryToText(apiName:String,queryfields:String="",queryParams:Map[String,String] = Map()):String={
+    val reqParams = write(ujson.Obj("api_name"->apiName,
           "token"->tokenGotten,
-      "fields"->queryfields
+      "fields"->queryfields,
+      "params" ->queryParams
     ))
     val response = requests.post(httpUrl,headers = Map("Content-Type"->"application/json"),data=reqParams,connectTimeout=timeout*1000)
-    response.text()
+    val text = response.text()
+    pattern.replaceAllIn(text,"$1$2\"$3\"")
   }
-  def queryToDF(apiName:String,queryfields:String=""):DataFrame={
-    val data = queryToText(apiName,queryfields)
+
+  def queryToDF(apiName:String,queryfields:String="",queryParams:Map[String,String] = Map()):DataFrame={
+    val data = queryToText(apiName,queryfields,queryParams)
     val core = ujson.read(data)("data")
     val items = core("items")
     val fields = read[Seq[String]](core("fields"))
