@@ -29,10 +29,14 @@ class DataApi(token:String = "",timeout:Int = 10)(implicit val confContext:ConfC
 
   def queryToDF(apiName:String,queryfields:String="",queryParams:Map[String,String] = Map()):DataFrame={
     val data = queryToText(apiName,queryfields,queryParams)
+    try{
     val core = ujson.read(data)("data")
     val items = core("items")
     val fields = read[Seq[String]](core("fields"))
     read[Seq[Seq[String]]](items.toString).toDF("_tmp").select( col("_tmp") +: (0 until fields.size).map(i => col("_tmp")(i).alias(s"col$i")): _*).drop("_tmp").toDF(fields:_*)
+    }catch {
+      case ex:Exception => println(data);throw new Exception("Error when reading data.")
+    }
   }
 
 
